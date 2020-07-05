@@ -62,6 +62,8 @@ def main():
     nbytestored = 0
     for fn in filelist:
         (h, nbyte) = filehash(fn)
+        if nbyte == 0:
+            continue
         if h in filedict:
             relink(filedict[h], fn)
             nrelink += 1
