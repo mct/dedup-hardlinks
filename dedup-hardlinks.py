@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import sys
 import hashlib
 import argparse
+import stat
 
 def die(msg):
     sys.stderr.write("%s\n" % msg)
@@ -48,8 +49,26 @@ verbose = False
 def relink(f1, f2, nbyte):
     '''Replace `f2` with a hardlink to `f1`.'''
     global dryrun
+
+    stat1 = os.stat(f1)
+    stat2 = os.stat(f2)
+
+    if stat1.st_dev != stat2.st_dev:
+        die(f'File {f1} and {f2} are on different devices? Perhaps rethink your arguments to find(1)...')
+
+    if stat1.st_ino == stat2.st_ino:
+        if verbose:
+            print(f'Skipping, because {f1} and {f2} are already hardlinked')
+        return
+
+    if not stat.S_ISREG(stat1.st_mode) or not stat.S_ISREG(stat2.st_mode):
+        if verbose:
+            print(f'Skipping, because either {f1} or {f2} are not normal files')
+        return
+
     if dryrun or verbose:
         print("replace %s with hardlink to %s, saving %s" % (f2, f1, prettysize(nbyte)))
+
     if not dryrun:
         os.unlink(f2)
         os.link(f1, f2)
