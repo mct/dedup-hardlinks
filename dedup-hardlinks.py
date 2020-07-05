@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import hashlib
 import argparse
@@ -41,17 +42,31 @@ def prettysize(nbyte):
         if nbyte < 1024:
             return "%d %s" % (nbyte, p)
 
-def relink(f1, f2):
+dryrun = True
+verbose = False
+
+def relink(f1, f2, nbyte):
     '''Replace `f2` with a hardlink to `f1`.'''
-    print("replace %s with hardlink to %s" % (f2, f1))
+    global dryrun
+    if dryrun or verbose:
+        print("replace %s with hardlink to %s, saving %s" % (f2, f1, prettysize(nbyte)))
+    if not dryrun:
+        os.unlink(f2)
+        os.link(f1, f2)
 
 def main():
     parser = argparse.ArgumentParser()
-    #parser.add_argument()
+    parser.add_argument('--verbose', '-v', action='store_true', default=False, help="describe what is being done")
+    parser.add_argument('--dryrun', '-n', action='store_true', default=False, help='check what to do and print it but do not do anything')
     args = parser.parse_args()
 
     if sys.stdin.isatty():
         die("Usage: find ... -print0 | dedup-hardlinks.py")
+
+    global dryrun
+    global verbose
+    dryrun = args.dryrun
+    verbose = args.verbose
 
     filelist = read_filelist(sys.stdin)
     nfile = len(filelist)
@@ -65,7 +80,7 @@ def main():
         if nbyte == 0:
             continue
         if h in filedict:
-            relink(filedict[h], fn)
+            relink(filedict[h], fn, nbyte)
             nrelink += 1
             nbyterelink += nbyte
         else:
